@@ -10,7 +10,9 @@ This project demonstrates a **fully automated CI/CD pipeline** using:
 * **MEAN Stack Application**
 
 ---
-
+# ** Project live URL
+https://assignment.navabdarveshali.xyz/
+![home](/screenshots/home.png)
 # 📌 **Table of Contents**
 
 1. [Project Architecture](#project-architecture)
