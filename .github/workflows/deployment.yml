@@ -69,6 +69,6 @@ jobs:
             cd ${{ secrets.EC2_PROJECT_PATH }}
 
             echo "Rebuilding and restarting containers..."
-            docker compose down
-            docker compose up --build -d
+            docker-compose down
+            docker-compose up --build -d
 
