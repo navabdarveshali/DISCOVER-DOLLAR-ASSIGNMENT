@@ -52,7 +52,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "./"
+          source: "./*"
           target: ${{ secrets.EC2_PROJECT_PATH }}
           overwrite: true
 
