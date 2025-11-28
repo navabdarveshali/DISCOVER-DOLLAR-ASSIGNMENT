@@ -56,8 +56,6 @@ jobs:
           target: ${{ secrets.EC2_PROJECT_PATH }}
           overwrite: true
 
-
-
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.6
         with:
@@ -67,12 +65,23 @@ jobs:
           script: |
             cd ${{ secrets.EC2_PROJECT_PATH }}
 
-            echo "Pulling latest images from Docker Hub..."
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/backend-image:latest
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/frontend-image:latest
-
             echo "Rebuilding and restarting containers..."
-            docker-compose down
-            docker-compose up --build -d
+            docker compose down
+            docker compose up -d
 
-            echo "Deployment completed!"
+            echo "Checking Docker container status..."
+            docker compose ps
+
+            echo "Waiting 10 seconds for containers to initialize..."
+            sleep 10
+
+            echo "Checking backend health..."
+            curl -f http://localhost:8080/health || (echo "Backend NOT RUNNING!" && exit 1)
+
+            echo "Checking frontend response..."
+            curl -f http://localhost/ || (echo "Frontend NOT RUNNING!" && exit 1)
+
+            echo "Checking MongoDB status..."
+            docker exec mongo mongosh --eval "db.adminCommand('ping')" || (echo "MongoDB NOT RUNNING!" && exit 1)
+
+            echo "Deployment successful. All services are healthy!"
