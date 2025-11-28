@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin@123
+    networks:
+      - crud-dd-task-mean-app
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 8s
+
+  backend:
+    image: navabdarveshali/backend-image:latest
+    container_name: backend-image
+    environment:
+      MONGO_URI: mongodb://admin:admin%40123@mongo:27017/dd_db?authSource=admin
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - crud-dd-task-mean-app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    image: navabdarveshali/frontend-image:latest
+    container_name: frontend-image
+    ports:
+      - "4200:4200" 
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - crud-dd-task-mean-app
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4200/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  mongo-data:
+
+networks:
+  crud-dd-task-mean-app:
+    driver: bridge
