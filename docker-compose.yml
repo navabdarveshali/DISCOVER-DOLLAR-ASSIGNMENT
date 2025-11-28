@@ -46,7 +46,7 @@ services:
     image: navabdarveshali/frontend-image:latest
     container_name: frontend-image
     ports:
-      - "4200:80" 
+      - "4200:4200" 
     depends_on:
       backend:
         condition: service_healthy
