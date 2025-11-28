@@ -1,4 +1,4 @@
-# 🚀 **MEAN Stack Deployment (MongoDB, Express, Angular, Node.js) with Docker, Docker Hub, GitHub Actions CI/CD & AWS EC2**
+# **MEAN Stack Deployment (MongoDB, Express, Angular, Node.js) with Docker, Docker Hub, GitHub Actions CI/CD & AWS EC2**
 
 This project demonstrates a **fully automated CI/CD pipeline** using:
 
