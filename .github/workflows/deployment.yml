@@ -72,7 +72,7 @@ jobs:
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/frontend-image:latest
 
             echo "Rebuilding and restarting containers..."
-            docker compose down
-            docker compose up --build -d
+            docker-compose down
+            docker-compose up --build -d
 
             echo "Deployment completed!"
