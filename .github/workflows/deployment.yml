@@ -70,7 +70,7 @@ jobs:
 
             echo "Rebuilding and restarting containers..."
             docker compose down
-            docker compose up -d
+            docker compose up --build -d
 
             echo "Checking Docker container status..."
             docker compose ps
