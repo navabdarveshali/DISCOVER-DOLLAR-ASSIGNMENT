@@ -23,8 +23,6 @@ This project demonstrates a **fully automated CI/CD pipeline** using:
    * [Nginx Setup](#5-nginx-setup-reverse-proxy)
 3. [Deployment Workflow](#deployment-workflow)
 4. [Environment Variables](#environment-variables)
-5. [Screenshots](#screenshots)
-6. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -47,11 +45,13 @@ Developer → GitHub → GitHub Actions → Docker Build → Push to Docker Hub
 ## **Step 1 — Launch EC2 Instance**
 
 * OS: **Ubuntu 22.04 LTS**
-* Size: **t2.micro (Free Tier)**
-* Storage: **20GB+**
+* Size: **t3.micro (Free Tier)**
+* Storage: **16GB+**
+![EC2](/screenshots/EC2.png)
+
 
 ## **Step 2 — Configure Security Groups**
-
+![Security-group](/screenshots/security-group.jpeg)
 Open inbound ports:
 
 | Port  | Description                 | Required          |
@@ -98,17 +98,20 @@ newgrp docker
 ## **Step 1 — Create a Docker Hub Account**
 
 👉 [https://hub.docker.com/](https://hub.docker.com/)
+![dockerhub-user](/screenshots/dockerhub-user.png)
+
 
 ## **Step 2 — Create Repositories**
 
 Create these two:
 
 ```
-yourname/backend
-yourname/frontend
+navabdarveshali/backend-image
+navabdarveshali/frontend-image
 ```
 
 ## **Step 3 — Create Docker Hub Access Token**
+![dockerhub](/screenshots/docker-accestoken-1.png)
 
 Docker Hub → Account Settings → **Security** → Create Token
 
@@ -118,6 +121,7 @@ Save:
 * `DOCKERHUB_TOKEN`
 
 You will add these in GitHub Actions secrets.
+![dockerhub](/screenshots/docker%20access%20token%202%20copy.png)
 
 ---
 
@@ -128,7 +132,7 @@ You will add these in GitHub Actions secrets.
 Go to:
 
 `GitHub Repo → Settings → Secrets → Actions`
-
+![github secrets](/screenshots/github-secrets.png)
 Add:
 
 | Secret               | Example              |
@@ -153,7 +157,7 @@ Create:
 Paste this:
 
 ```yaml
-name: CI-CD Pipeline
+name: CRUD-DD-TASK-MEAN-APP
 
 on:
   push:
@@ -162,10 +166,12 @@ on:
 jobs:
 
   build-and-push:
+    name: Build & Push Docker Images
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
       - name: Login to Docker Hub
         uses: docker/login-action@v2
@@ -175,20 +181,44 @@ jobs:
 
       - name: Build Backend Image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest ./backend
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/backend-image:latest ./backend
+
+      - name: Push Backend Image
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/backend-image:latest
 
       - name: Build Frontend Image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest ./frontend
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/frontend-image:latest ./frontend
+
+      - name: Push Frontend Image
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/frontend-image:latest
+
 
   deploy:
-    needs: build-and-push
+    name: Deploy to AWS EC2
     runs-on: ubuntu-latest
+    needs: build-and-push
 
     steps:
-      - name: Deploy to EC2
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Copy All Project Files to EC2 (excluding .git & node_modules)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "./"
+          target: ${{ secrets.EC2_PROJECT_PATH }}
+          overwrite: true
+          rm: true
+          skip_symlinks: true
+
+
+      - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -196,79 +226,15 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ${{ secrets.EC2_PROJECT_PATH }}
-            docker compose pull
-            docker compose down
-            docker compose up -d
-```
 
+            echo "Rebuilding and restarting containers..."
+            docker-compose down
+            docker-compose up --build -d
+
+
+```
+![githubactions](/screenshots/actions.png)
 ✔ This will automatically run every time you `git push`.
-
----
-
-# 4️⃣ **Docker Compose Setup on EC2**
-
-Inside EC2:
-
-```
-mkdir app
-cd app
-nano docker-compose.yml
-```
-
-Paste the following:
-
-```yaml
-version: '3.8'
-
-services:
-
-  mongo:
-    image: mongo:6
-    container_name: mongo
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin@123
-    volumes:
-      - mongo-data:/data/db
-    networks:
-      - mean-net
-
-  backend:
-    image: yourdockerhub/backend:latest
-    container_name: backend
-    environment:
-      MONGO_URI: mongodb://admin:admin%40123@mongo:27017/dd_db?authSource=admin
-      PORT: 8080
-    ports:
-      - "8080:8080"
-    depends_on:
-      - mongo
-    networks:
-      - mean-net
-
-  frontend:
-    image: yourdockerhub/frontend:latest
-    container_name: frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    networks:
-      - mean-net
-
-volumes:
-  mongo-data:
-
-networks:
-  mean-net:
-    driver: bridge
-```
-
-Start it manually once:
-
-```bash
-docker compose up -d
-```
 
 ---
 
@@ -283,7 +249,7 @@ sudo apt install nginx -y
 ## Configure Proxy
 
 ```bash
-sudo nano /etc/nginx/sites-available/mean-app
+sudo vi /etc/nginx/nginx.conf
 ```
 
 Paste:
@@ -291,13 +257,25 @@ Paste:
 ```nginx
 server {
     listen 80;
+    server_name _;
 
     location / {
-        proxy_pass http://localhost:80;  # frontend
+        proxy_pass http://localhost:4200;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
     }
 
+    
     location /api/ {
-        proxy_pass http://localhost:8080/;  # backend
+        proxy_pass http://localhost:8080/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
     }
 }
 ```
